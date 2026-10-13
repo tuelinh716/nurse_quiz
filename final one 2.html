@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nurse Wellbeing Self-Check</title>
+<style>
+body {
+  margin: 0;
+  background: #f3fcff;
+  color: #213d35;
+  font-family: Arial, sans-serif;
+  line-height: 1.5;
+}
+.container {
+  max-width: 680px;
+  margin: 40px auto;
+  padding: 0 15px;
+}
+.box {
+  background: white;
+  border: 1px solid #d7e4dc;
+  border-radius: 12px;
+  padding: 25px;
+}
+h1 { font-size: 28px; margin-top: 0; }
+h2 { font-size: 22px; margin-top: 0; }
+.grey { color: #60766e; }
+.small { color: #60766e; font-size: 14px; }
+
+button {
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid #d7e4dc;
+  padding: 12px 16px;
+  background: white;
+}
+button:hover { border-color: #24586e; }
+.green-btn {
+  background: #246e62;
+  color: white;
+  border-color: #246e62;
+  font-weight: bold;
+}
+#answerButtons { margin: 20px 0; }
+#answerButtons button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 10px;
+}
+#questionText { font-size: 20px; margin: 15px 0; }
+
+.progress-bar { height: 8px; background: #d7dee4; border-radius: 10px; margin-bottom: 15px; }
+#progressFill { height: 8px; width: 0%; background: #246e62; border-radius: 10px; }
+
+#backButton {
+  border: none;
+  background: none;
+  text-decoration: underline;
+  color: #60766e;
+  padding-left: 0;
+}
+
+.score-row { display: flex; align-items: center; margin: 12px 0; }
+.score-name { width: 125px; font-weight: bold; }
+.score-track { flex: 1; background: #d7e4dc; height: 12px; border-radius: 8px; margin: 0 10px; }
+.score-fill { height: 12px; border-radius: 8px; }
+
+.rec {
+  border-left: 4px solid #246e62;
+  background: #e8f2ee;
+  padding: 12px 15px;
+  margin: 12px 0;
+}
+.rec h3 { margin: 0 0 5px; }
+.rec p { margin: 0; }
+
+#radar { width: 100%; max-width: 360px; display: block; margin: 10px auto 20px; }
+
+@media (max-width: 480px) {
+  .container { margin: 15px auto; }
+  .box { padding: 18px; }
+  .score-name { width: 95px; font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- start page -->
+  <div id="welcome" class="box">
+    <h1>Wellbeing Self-Check</h1>
+    <p>Take a few minutes to think about how you have felt at work over the last two weeks.</p>
+    <p>There are 24 questions based on the four parts of Te Whare Tapa Whā. At the end you will see your wellbeing profile and some programs that might help.</p>
+    <p class="small">This is just a reflection activity, not a medical or psychological test. It takes about 4 minutes.</p>
+    <button class="green-btn" id="startButton">Start self-check</button>
+  </div>
+
+  <!-- questions page -->
+  <div id="questions" class="box" style="display:none">
+    <div class="progress-bar"><div id="progressFill"></div></div>
+    <p class="grey" id="questionNumber"></p>
+    <p id="questionText"></p>
+    <div id="answerButtons"></div>
+    <button id="backButton">Back</button>
+  </div>
+
+  <!-- results page -->
+  <div id="results" class="box" style="display:none">
+    <h2>Your wellbeing profile</h2>
+    <p class="grey">Scores go from 1 to 10. A higher score means that area may need more attention.</p>
+    <svg id="radar" viewBox="0 0 360 310"></svg>
+    <div id="scoreBars"></div>
+    <div id="recommendations"></div>
+    <p class="small">These scores are only for personal reflection and are not clinically validated. If you need support, you could talk to your Employee Assistance Program. In Australia you can call Lifeline on 13 11 14.</p>
+    <button class="green-btn" id="restartButton">Try again</button>
+  </div>
+
+</div>
+
+<script>
+// info about the 4 areas and the programs
+var areas = {
+  physical: {
+    name: 'Taha Tinana', label: 'Physical', color: '#c2603a',
+    program: 'Nurse Physical Wellbeing Program',
+    detail: 'Build recovery into your shifts with warm-ups, short stretches and the Nurse Fitness Club.'
+  },
+  mental: {
+    name: 'Taha Hinengaro', label: 'Mental', color: '#3a6ec2',
+    program: 'Nurses Check-In Program',
+    detail: 'Fortnightly check-ins to share how you feel, debrief difficult shifts and find support.'
+  },
+  family: {
+    name: 'Taha Whānau', label: 'Family', color: '#8a5ab8',
+    program: 'Nurse Connection Program',
+    detail: 'Monthly shared meals, small-group conversations and peer appreciation to build a sense of belonging.'
+  },
+  spiritual: {
+    name: 'Taha Wairua', label: 'Spiritual', color: '#2f8f6a',
+    program: 'Nurse Meaning & Connection Program',
+    detail: 'Short meaning check-ins, guided pauses and Values in Practice sessions to reconnect with purpose.'
+  }
+};
+
+var areaList = ['physical', 'mental', 'family', 'spiritual'];
+
+// 24 questions, 6 for each area
+var questions = [
+  { area: 'physical', text: 'I feel physically exhausted by the end of my shift.' },
+  { area: 'mental', text: 'I feel anxious, tense or overwhelmed while I am at work.' },
+  { area: 'family', text: 'I feel isolated from my colleagues.' },
+  { area: 'spiritual', text: 'I question whether my work still matters.' },
+  { area: 'physical', text: 'I wake up unrefreshed or get less sleep than I need.' },
+  { area: 'mental', text: 'I keep replaying stressful events from my shift after I go home.' },
+  { area: 'family', text: 'I do not have anyone at work I feel comfortable asking for help.' },
+  { area: 'spiritual', text: 'I feel disconnected from the reasons I became a nurse.' },
+  { area: 'physical', text: 'I have muscle aches, back pain or sore feet and joints after work.' },
+  { area: 'mental', text: 'I find it hard to switch off from work.' },
+  { area: 'family', text: 'I do not feel that I truly belong in my team.' },
+  { area: 'spiritual', text: 'Patient suffering or death stays with me, and I struggle to make sense of it.' },
+  { area: 'physical', text: 'I skip meals or rely on quick, unhealthy food during shifts.' },
+  { area: 'mental', text: 'I feel irritable, low or emotionally flat.' },
+  { area: 'family', text: 'I rarely have time to connect with colleagues beyond handovers and tasks.' },
+  { area: 'spiritual', text: 'Ethical dilemmas at work leave me feeling conflicted or unsettled.' },
+  { area: 'physical', text: 'I find it hard to recover physically between shifts.' },
+  { area: 'mental', text: 'I hold back my feelings because there is no safe place or time to share them.' },
+  { area: 'family', text: 'After work, I am too tired to keep up with family and friends.' },
+  { area: 'spiritual', text: 'I feel like I am just going through the motions at work.' },
+  { area: 'physical', text: 'I do not get enough time or energy to move my body the way I would like.' },
+  { area: 'mental', text: 'After difficult events, I do not get a chance to debrief.' },
+  { area: 'family', text: 'I feel my efforts are not noticed or appreciated by my team.' },
+  { area: 'spiritual', text: 'I feel disconnected from what grounds me, such as values, culture, faith, community or nature.' }
+];
+
+var choices = ['Never', 'Rarely', 'Sometimes', 'Often'];
+
+var order = [];      // the order the questions are shown in
+var answers = [];    // the score picked for each question
+var current = 0;     // which question we are on
+
+
+function showPage(name) {
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('questions').style.display = 'none';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById(name).style.display = 'block';
+  window.scrollTo(0, 0);
+}
+
+function startQuiz() {
+  // put the question numbers in order first
+  order = [];
+  for (var i = 0; i < questions.length; i++) {
+    order.push(i);
+  }
+  // then shuffle them
+  for (var i = order.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var temp = order[i];
+    order[i] = order[j];
+    order[j] = temp;
+  }
+  answers = [];
+  current = 0;
+  showPage('questions');
+  showQuestion();
+}
+
+function showQuestion() {
+  var q = questions[order[current]];
+  document.getElementById('questionNumber').innerHTML = 'Question ' + (current + 1) + ' of ' + questions.length;
+  document.getElementById('questionText').innerHTML = q.text;
+  document.getElementById('progressFill').style.width = (current / questions.length * 100) + '%';
+
+  // hide back button on the first question
+  if (current == 0) {
+    document.getElementById('backButton').style.display = 'none';
+  } else {
+    document.getElementById('backButton').style.display = 'inline-block';
+  }
+
+  var box = document.getElementById('answerButtons');
+  box.innerHTML = '';
+  for (var i = 0; i < choices.length; i++) {
+    var btn = document.createElement('button');
+    btn.innerHTML = choices[i];
+    btn.setAttribute('data-score', i);
+    btn.onclick = function () {
+      saveAnswer(Number(this.getAttribute('data-score')));
+    };
+    box.appendChild(btn);
+  }
+}
+
+function saveAnswer(score) {
+  answers[current] = score;
+  current = current + 1;
+  if (current < questions.length) {
+    showQuestion();
+  } else {
+    showResults();
+  }
+}
+
+function getScores() {
+  var totals = { physical: 0, mental: 0, family: 0, spiritual: 0 };
+  for (var i = 0; i < order.length; i++) {
+    var area = questions[order[i]].area;
+    totals[area] = totals[area] + answers[i];
+  }
+  // max is 18 per area (6 questions x 3), change it to a score from 1 to 10
+  var scores = {};
+  for (var i = 0; i < areaList.length; i++) {
+    var a = areaList[i];
+    scores[a] = Math.round(1 + totals[a] * 9 / 18);
+  }
+  return scores;
+}
+
+function drawRadar(scores) {
+  var cx = 180;
+  var cy = 155;
+  var r = 105;
+  // each area points in one direction (x, y)
+  var dir = {
+    physical: [0, -1],
+    mental: [1, 0],
+    family: [0, 1],
+    spiritual: [-1, 0]
+  };
+
+  // work out the x,y of a point for an area at a certain score
+  function getPoint(area, score) {
+    var x = cx + dir[area][0] * r * score / 10;
+    var y = cy + dir[area][1] * r * score / 10;
+    return [x, y];
+  }
+
+  var svg = '';
+
+  // background rings
+  var levels = [2.5, 5, 7.5, 10];
+  for (var i = 0; i < levels.length; i++) {
+    var pts = '';
+    for (var k = 0; k < areaList.length; k++) {
+      var p = getPoint(areaList[k], levels[i]);
+      pts += p[0] + ',' + p[1] + ' ';
+    }
+    svg += '<polygon points="' + pts + '" fill="none" stroke="#d7e4dc" />';
+  }
+
+  // lines from the middle
+  for (var i = 0; i < areaList.length; i++) {
+    var end = getPoint(areaList[i], 10);
+    svg += '<line x1="' + cx + '" y1="' + cy + '" x2="' + end[0] + '" y2="' + end[1] + '" stroke="#d7e4dc" />';
+  }
+
+  // the shape for the user's scores
+  var userPts = '';
+  for (var i = 0; i < areaList.length; i++) {
+    var p = getPoint(areaList[i], scores[areaList[i]]);
+    userPts += p[0] + ',' + p[1] + ' ';
+  }
+  svg += '<polygon points="' + userPts + '" fill="#246e62" fill-opacity="0.2" stroke="#246e62" stroke-width="2.5" />';
+
+  // labels
+  svg += '<text x="180" y="25" text-anchor="middle" font-size="13">Physical</text>';
+  svg += '<text x="298" y="160" text-anchor="start" font-size="13">Mental</text>';
+  svg += '<text x="180" y="286" text-anchor="middle" font-size="13">Family</text>';
+  svg += '<text x="62" y="160" text-anchor="end" font-size="13">Spiritual</text>';
+
+  document.getElementById('radar').innerHTML = svg;
+}
+
+function addRec(box, area, title) {
+  var a = areas[area];
+  var div = document.createElement('div');
+  div.className = 'rec';
+  div.style.borderLeftColor = a.color;
+  div.innerHTML = '<h3>' + a.program + '</h3><p>' + title + ': ' + a.name + '. ' + a.detail + '</p>';
+  box.appendChild(div);
+}
+
+function showResults() {
+  var scores = getScores();
+
+  // sort areas from highest score to lowest
+  var sorted = areaList.slice();
+  sorted.sort(function (a, b) {
+    return scores[b] - scores[a];
+  });
+
+  drawRadar(scores);
+
+  // score bars
+  var bars = document.getElementById('scoreBars');
+  bars.innerHTML = '';
+  for (var i = 0; i < sorted.length; i++) {
+    var a = sorted[i];
+    bars.innerHTML +=
+      '<div class="score-row">' +
+        '<span class="score-name">' + areas[a].name + '</span>' +
+        '<div class="score-track"><div class="score-fill" style="width:' + (scores[a] * 10) + '%; background:' + areas[a].color + '"></div></div>' +
+        '<span>' + scores[a] + '/10</span>' +
+      '</div>';
+  }
+
+  // recommendations
+  var recBox = document.getElementById('recommendations');
+  recBox.innerHTML = '';
+  var highest = scores[sorted[0]];
+
+  if (highest <= 4) {
+    recBox.innerHTML = '<p>Your answers suggest a fairly balanced profile right now. You can still look at any of the four programs below.</p>';
+  } else {
+    // find all areas that share the top score
+    var top = [];
+    for (var i = 0; i < sorted.length; i++) {
+      if (scores[sorted[i]] == highest) {
+        top.push(sorted[i]);
+      }
+    }
+    for (var i = 0; i < top.length; i++) {
+      addRec(recBox, top[i], 'Area to focus on');
+    }
+    // if only one top area, maybe show the second one too
+    if (top.length == 1) {
+      var second = sorted[1];
+      if (scores[second] >= 5 || highest - scores[second] <= 1) {
+        addRec(recBox, second, 'Another area to consider');
+      }
+    }
+  }
+
+  recBox.innerHTML += '<p class="grey">All four wellbeing programs are available to explore, whatever your results are.</p>';
+
+  showPage('results');
+}
+
+document.getElementById('startButton').onclick = startQuiz;
+document.getElementById('restartButton').onclick = startQuiz;
+document.getElementById('backButton').onclick = function () {
+  if (current > 0) {
+    current = current - 1;
+    showQuestion();
+  }
+};
+</script>
+</body>
+</html>
